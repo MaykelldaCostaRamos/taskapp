@@ -6,43 +6,39 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
 // ===== REGISTRO DE USUARIO =====
-export const registerUser = async (req, res) => {
+export const registerUser = async (req, res, next) => {
   try {
     // 1. Extraer datos del body
     const { name, email, password } = req.body;
 
     // 2. Validar que vengan todos los campos
     if (!name || !email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Todos los campos son obligatorios'
-      });
+      const error = new Error('Todos los campos son obligatorios');
+      error.statusCode = 400;
+      throw error;
     }
 
     // 3. Validar formato de email
     const emailRegex = /^\S+@\S+\.\S+$/;
     if (!emailRegex.test(email)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email inválido'
-      });
+      const error = new Error('Email inválido');
+      error.statusCode = 400;
+      throw error;
     }
 
     // 4. Validar longitud de contraseña
     if (password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'La contraseña debe tener al menos 6 caracteres'
-      });
+      const error = new Error('La contraseña debe tener al menos 6 caracteres');
+      error.statusCode = 400;
+      throw error;
     }
 
     // 5. Verificar si el email ya existe
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'El email ya está registrado'
-      });
+      const error = new Error('El email ya está registrado');
+      error.statusCode = 400;
+      throw error;
     }
 
     // 6. Encriptar contraseña
@@ -67,55 +63,47 @@ export const registerUser = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en registerUser:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al registrar usuario'
-    });
+    next(error);  // 👈 Pasa el error al errorHandler
   }
 };
 
 
 // ===== LOGIN DE USUARIO =====
-export const loginUser = async (req, res) => {
+export const loginUser = async (req, res, next) => {
   try {
     // 1. Extraer credenciales
     const { email, password } = req.body;
 
     // 2. Validar que vengan los datos
     if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email y contraseña son obligatorios'
-      });
+      const error = new Error('Email y contraseña son obligatorios');
+      error.statusCode = 400;
+      throw error;
     }
 
     // 3. Buscar usuario por email (incluyendo password con select)
     const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
     
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Credenciales inválidas'
-      });
+      const error = new Error('Credenciales inválidas');
+      error.statusCode = 401;
+      throw error;
     }
 
     // 4. Verificar que la cuenta esté activa
     if (!user.isActive) {
-      return res.status(403).json({
-        success: false,
-        message: 'Cuenta desactivada'
-      });
+      const error = new Error('Cuenta desactivada');
+      error.statusCode = 403;
+      throw error;
     }
 
     // 5. Comparar contraseña usando el método del modelo
     const isPasswordValid = await user.comparePassword(password);
     
     if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        message: 'Credenciales inválidas'
-      });
+      const error = new Error('Credenciales inválidas');
+      error.statusCode = 401;
+      throw error;
     }
 
     // 6. Generar token JWT
@@ -125,22 +113,22 @@ export const loginUser = async (req, res) => {
         email: user.email 
       },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }  // Token válido por 7 días
+      { expiresIn: '7d' }
     );
 
     // 7. Configurar cookie HTTP-only (seguro)
     res.cookie('token', token, {
-      httpOnly: true,  // No accesible desde JavaScript
-      secure: process.env.NODE_ENV === 'production',  // Solo HTTPS en producción
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Protección contra CSRF
-      maxAge: 7 * 24 * 60 * 60 * 1000  // 7 días en milisegundos
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
     // 8. Responder con datos del usuario (sin password)
     res.json({
       success: true,
       message: 'Login exitoso',
-      token,  // El frontend puede guardarlo en localStorage
+      token,
       user: {
         id: user._id,
         name: user.name,
@@ -151,17 +139,13 @@ export const loginUser = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en loginUser:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al iniciar sesión'
-    });
+    next(error);
   }
 };
 
 
 // ===== LOGOUT DE USUARIO =====
-export const logoutUser = (req, res) => {
+export const logoutUser = (req, res, next) => {
   try {
     // 1. Limpiar cookie del servidor
     res.clearCookie('token', {
@@ -177,31 +161,26 @@ export const logoutUser = (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en logoutUser:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al cerrar sesión'
-    });
+    next(error);
   }
 };
 
 
 // ===== OBTENER PERFIL DEL USUARIO =====
-export const getProfile = async (req, res) => {
+export const getProfile = async (req, res, next) => {
   try {
     // 1. Obtener userId del token (viene desde middleware verifyToken)
     const userId = req.user.userId;
 
     // 2. Buscar usuario en la BD
     const user = await User.findById(userId)
-      .populate('ownedProjects', 'name status')  // Traer proyectos propios
-      .populate('sharedProjects.projectId', 'name status');  // Traer proyectos compartidos
+      .populate('ownedProjects', 'name status')
+      .populate('sharedProjects.projectId', 'name status');
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Usuario no encontrado'
-      });
+      const error = new Error('Usuario no encontrado');
+      error.statusCode = 404;
+      throw error;
     }
 
     // 3. Responder con datos del perfil (sin password)
@@ -224,65 +203,142 @@ export const getProfile = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en getProfile:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al obtener perfil'
+    next(error);
+  }
+};
+
+
+// ===== ACTUALIZAR PERFIL =====
+export const updateProfile = async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const { name, bio, avatar, preferences } = req.body;
+
+    // 1. Buscar usuario
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      const error = new Error('Usuario no encontrado');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // 2. Actualizar solo los campos que vienen en el body
+    if (name !== undefined) {
+      if (name.trim().length < 2 || name.trim().length > 50) {
+        const error = new Error('El nombre debe tener entre 2 y 50 caracteres');
+        error.statusCode = 400;
+        throw error;
+      }
+      user.name = name.trim();
+    }
+
+    if (bio !== undefined) {
+      if (bio.length > 200) {
+        const error = new Error('La bio no puede exceder 200 caracteres');
+        error.statusCode = 400;
+        throw error;
+      }
+      user.bio = bio.trim();
+    }
+
+    if (avatar !== undefined) {
+      if (avatar !== null && avatar !== '') {
+        const urlRegex = /^https?:\/\/.+/;
+        if (!urlRegex.test(avatar)) {
+          const error = new Error('El avatar debe ser una URL válida');
+          error.statusCode = 400;
+          throw error;
+        }
+      }
+      user.avatar = avatar || null;
+    }
+
+    if (preferences !== undefined) {
+      if (preferences.theme && ['light', 'dark', 'auto'].includes(preferences.theme)) {
+        user.preferences.theme = preferences.theme;
+      }
+      
+      if (preferences.language && ['es', 'en'].includes(preferences.language)) {
+        user.preferences.language = preferences.language;
+      }
+      
+      if (preferences.notifications !== undefined) {
+        user.preferences.notifications = {
+          ...user.preferences.notifications,
+          ...preferences.notifications
+        };
+      }
+    }
+
+    // 3. Guardar cambios
+    await user.save();
+
+    // 4. Responder con perfil actualizado
+    res.json({
+      success: true,
+      message: 'Perfil actualizado exitosamente',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+        bio: user.bio,
+        preferences: user.preferences
+      }
     });
+
+  } catch (error) {
+    next(error);
   }
 };
 
 
 // ===== CAMBIAR CONTRASEÑA =====
-export const changePassword = async (req, res) => {
+export const changePassword = async (req, res, next) => {
   try {
     const userId = req.user.userId;
     const { currentPassword, newPassword } = req.body;
 
     // 1. Validar que vengan ambos campos
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Debes proporcionar la contraseña actual y la nueva'
-      });
+      const error = new Error('Debes proporcionar la contraseña actual y la nueva');
+      error.statusCode = 400;
+      throw error;
     }
 
     // 2. Validar longitud de la nueva contraseña
     if (newPassword.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'La nueva contraseña debe tener al menos 6 caracteres'
-      });
+      const error = new Error('La nueva contraseña debe tener al menos 6 caracteres');
+      error.statusCode = 400;
+      throw error;
     }
 
     // 3. Buscar usuario con password incluido
     const user = await User.findById(userId).select('+password');
     
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Usuario no encontrado'
-      });
+      const error = new Error('Usuario no encontrado');
+      error.statusCode = 404;
+      throw error;
     }
 
     // 4. Verificar que la contraseña actual sea correcta
     const isCurrentPasswordValid = await user.comparePassword(currentPassword);
     
     if (!isCurrentPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        message: 'La contraseña actual es incorrecta'
-      });
+      const error = new Error('La contraseña actual es incorrecta');
+      error.statusCode = 401;
+      throw error;
     }
 
     // 5. Verificar que la nueva contraseña sea diferente
     const isSamePassword = await user.comparePassword(newPassword);
     
     if (isSamePassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'La nueva contraseña debe ser diferente a la actual'
-      });
+      const error = new Error('La nueva contraseña debe ser diferente a la actual');
+      error.statusCode = 400;
+      throw error;
     }
 
     // 6. Encriptar y guardar nueva contraseña
@@ -297,47 +353,40 @@ export const changePassword = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en changePassword:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al cambiar contraseña'
-    });
+    next(error);
   }
 };
 
 
 // ===== ELIMINAR CUENTA Y TODOS LOS DATOS =====
-export const deleteAccount = async (req, res) => {
+export const deleteAccount = async (req, res, next) => {
   try {
     const userId = req.user.userId;
     const { password } = req.body;
 
     // 1. Validar que venga la contraseña (confirmación)
     if (!password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Debes proporcionar tu contraseña para confirmar'
-      });
+      const error = new Error('Debes proporcionar tu contraseña para confirmar');
+      error.statusCode = 400;
+      throw error;
     }
 
     // 2. Buscar usuario con password
     const user = await User.findById(userId).select('+password');
     
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Usuario no encontrado'
-      });
+      const error = new Error('Usuario no encontrado');
+      error.statusCode = 404;
+      throw error;
     }
 
     // 3. Verificar contraseña
     const isPasswordValid = await user.comparePassword(password);
     
     if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        message: 'Contraseña incorrecta'
-      });
+      const error = new Error('Contraseña incorrecta');
+      error.statusCode = 401;
+      throw error;
     }
 
     // 4. Buscar todos los proyectos del usuario (como owner)
@@ -359,8 +408,8 @@ export const deleteAccount = async (req, res) => {
     // 8. Eliminar invitaciones relacionadas
     await Invitation.deleteMany({ 
       $or: [
-        { invitedBy: userId },  // Invitaciones que creó
-        { email: user.email }   // Invitaciones que recibió
+        { invitedBy: userId },
+        { email: user.email }
       ]
     });
 
@@ -381,19 +430,15 @@ export const deleteAccount = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en deleteAccount:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al eliminar cuenta'
-    });
+    next(error);
   }
 };
 
 
 // ===== BUSCAR USUARIOS (para compartir proyectos) =====
-export const searchUsers = async (req, res) => {
+export const searchUsers = async (req, res, next) => {
   try {
-    // 1. Obtener query desde URL (?q=juan o ?query=juan)
+    // 1. Obtener query desde URL
     const query = (req.query.q || req.query.query || '').trim();
     
     // 2. Validar longitud mínima
@@ -406,7 +451,7 @@ export const searchUsers = async (req, res) => {
 
     // 3. Escapar caracteres especiales de regex
     const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp('^' + escapedQuery, 'i');  // ^ = comienza con
+    const regex = new RegExp('^' + escapedQuery, 'i');
 
     // 4. Buscar usuarios por email o nombre
     const users = await User.find({
@@ -414,12 +459,12 @@ export const searchUsers = async (req, res) => {
         { email: { $regex: regex } },
         { name: { $regex: regex } }
       ],
-      isActive: true,  // Solo usuarios activos
-      _id: { $ne: req.user.userId }  // Excluir al usuario actual
+      isActive: true,
+      _id: { $ne: req.user.userId }
     })
-    .limit(10)  // Máximo 10 resultados
-    .select('name email avatar')  // Solo campos necesarios
-    .lean();  // Mejor performance
+    .limit(10)
+    .select('name email avatar')
+    .lean();
 
     // 5. Responder con resultados
     res.json({ 
@@ -428,10 +473,6 @@ export const searchUsers = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en searchUsers:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error al buscar usuarios' 
-    });
+    next(error);
   }
 };
