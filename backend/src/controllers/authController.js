@@ -1,7 +1,6 @@
 import User from '../models/User.js';
 import Project from '../models/Project.js';
 import Task from '../models/Task.js';
-import Invitation from '../models/Invitation.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
@@ -405,25 +404,17 @@ export const deleteAccount = async (req, res, next) => {
       { $pull: { collaborators: { user: userId } } }
     );
 
-    // 8. Eliminar invitaciones relacionadas
-    await Invitation.deleteMany({ 
-      $or: [
-        { invitedBy: userId },
-        { email: user.email }
-      ]
-    });
-
-    // 9. Finalmente, eliminar al usuario
+    // 8. Finalmente, eliminar al usuario
     await User.findByIdAndDelete(userId);
 
-    // 10. Limpiar cookie
+    // 9. Limpiar cookie
     res.clearCookie('token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
     });
 
-    // 11. Responder con éxito
+    // 10. Responder con éxito
     res.json({
       success: true,
       message: 'Cuenta eliminada exitosamente'
