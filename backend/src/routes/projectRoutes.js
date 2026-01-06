@@ -25,7 +25,7 @@ router.delete('/:id', deleteProject);                               // Eliminar 
 
 // ===== RUTAS DE COLABORADORES =====
 router.post('/:id/collaborators', addCollaborator);                 // Agregar colaborador
-router.delete('/:id/collaborators/:collaboratorId', removeCollaborator);  // Remover colaborador
 router.put('/:id/collaborators/:collaboratorId', updateCollaboratorRole); // Actualizar role
+router.delete('/:id/collaborators/:collaboratorId', removeCollaborator);  // Remover colaborador
 
 export default router;

@@ -58,7 +58,7 @@ TaskSchema.index({ assignedTo: 1 });
 TaskSchema.index({ dueDate: 1 });
 
 // 🛡️ Pre-save: Auto-completar fecha cuando status cambia a 'completed'
-TaskSchema.pre('save', function(next) {
+TaskSchema.pre('save', async function() {
     if (this.isModified('status') && this.status === 'completed' && !this.completedAt) {
         this.completedAt = new Date();
     }
@@ -66,8 +66,6 @@ TaskSchema.pre('save', function(next) {
     if (this.isModified('status') && this.status !== 'completed') {
         this.completedAt = null;
     }
-    
-    next();
 });
 
 export default mongoose.model('Task', TaskSchema);
