@@ -1,6 +1,6 @@
 export default function Home() {
     return (
-        <div>
+        <div className="">
             <h1>Home - Página de inicio</h1>
             <p>Bienvenido a TaskApp</p>
         </div>
