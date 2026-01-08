@@ -4,6 +4,8 @@ import axios from '../../api/axios';
 import { getErrorMessage } from '../../utils/errorHandler';
 import ErrorMessage from '../../components/ErrorMessage';
 import Loading from '../../components/Loading';
+import SearchUsers from '../../components/SearchUsers';
+import CollaboratorList from '../../components/CollaboratorList';
 
 export default function ProjectDetail() {
   const { id } = useParams();
@@ -14,6 +16,12 @@ export default function ProjectDetail() {
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Estados para agregar colaborador
+  const [showAddCollaborator, setShowAddCollaborator] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedRole, setSelectedRole] = useState('viewer');
+  const [addingCollaborator, setAddingCollaborator] = useState(false);
 
   useEffect(() => {
     fetchProject();
@@ -50,11 +58,41 @@ export default function ProjectDetail() {
     }
   };
 
+  const handleAddCollaborator = async () => {
+    if (!selectedUser) {
+      alert('Selecciona un usuario primero');
+      return;
+    }
+
+    setAddingCollaborator(true);
+    setError(null);
+
+    try {
+      await axios.post(`/projects/${id}/collaborators`, {
+        userId: selectedUser._id,
+        role: selectedRole
+      });
+
+      // Refrescar proyecto
+      await fetchProject();
+
+      // Resetear formulario
+      setSelectedUser(null);
+      setSelectedRole('viewer');
+      setShowAddCollaborator(false);
+    } catch (error) {
+      const message = getErrorMessage(error);
+      setError(message);
+    } finally {
+      setAddingCollaborator(false);
+    }
+  };
+
   if (loading) {
     return <Loading />;
   }
 
-  if (error) {
+  if (error && !project) {
     return (
       <div>
         <ErrorMessage message={error} />
@@ -67,6 +105,12 @@ export default function ProjectDetail() {
 
   const isOwner = userRole === 'owner';
   const canEdit = userRole === 'owner' || userRole === 'editor';
+
+  // IDs a excluir en la búsqueda (owner + colaboradores actuales)
+  const excludeUserIds = [
+    project.owner._id,
+    ...project.collaborators.map(c => c.user._id)
+  ];
 
   return (
     <div>
@@ -90,6 +134,8 @@ export default function ProjectDetail() {
           </button>
         )}
       </div>
+
+      <ErrorMessage message={error} />
 
       <div>
         <h2>Información del Proyecto</h2>
@@ -118,20 +164,71 @@ export default function ProjectDetail() {
 
       <div>
         <h2>Colaboradores ({project.collaborators.length})</h2>
-        {project.collaborators.length === 0 ? (
-          <p>No hay colaboradores en este proyecto.</p>
-        ) : (
-          <ul>
-            {project.collaborators.map(collab => (
-              <li key={collab._id}>
-                {collab.user.name} ({collab.user.email}) - Rol: {collab.role}
-              </li>
-            ))}
-          </ul>
-        )}
         
+        <CollaboratorList
+          projectId={id}
+          collaborators={project.collaborators}
+          isOwner={isOwner}
+          onUpdate={fetchProject}
+        />
+
         {isOwner && (
-          <button>Agregar Colaborador</button>
+          <div style={{ marginTop: '16px' }}>
+            {!showAddCollaborator ? (
+              <button onClick={() => setShowAddCollaborator(true)}>
+                Agregar Colaborador
+              </button>
+            ) : (
+              <div style={{ 
+                border: '1px solid #ccc', 
+                padding: '16px',
+                borderRadius: '4px'
+              }}>
+                <h3>Buscar Usuario</h3>
+                
+                <SearchUsers
+                  onSelectUser={setSelectedUser}
+                  excludeUserIds={excludeUserIds}
+                />
+
+                {selectedUser && (
+                  <div style={{ marginTop: '16px' }}>
+                    <p>Usuario seleccionado: <strong>{selectedUser.name}</strong> ({selectedUser.email})</p>
+                    
+                    <div>
+                      <label>Rol:</label>
+                      <select 
+                        value={selectedRole} 
+                        onChange={(e) => setSelectedRole(e.target.value)}
+                      >
+                        <option value="viewer">Viewer (solo ver)</option>
+                        <option value="editor">Editor (ver y editar)</option>
+                      </select>
+                    </div>
+
+                    <div style={{ marginTop: '8px' }}>
+                      <button 
+                        onClick={handleAddCollaborator}
+                        disabled={addingCollaborator}
+                      >
+                        {addingCollaborator ? 'Agregando...' : 'Agregar'}
+                      </button>
+
+                      <button 
+                        onClick={() => {
+                          setSelectedUser(null);
+                          setShowAddCollaborator(false);
+                        }}
+                        style={{ marginLeft: '8px' }}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
