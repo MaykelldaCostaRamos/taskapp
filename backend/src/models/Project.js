@@ -82,26 +82,6 @@ ProjectSchema.pre("save", async function () {
 });
 
 // 📌 Método: Verificar si un usuario tiene acceso al proyecto
-/*ProjectSchema.methods.hasAccess = function (userId) {
-  const userIdStr = userId.toString();
-
-  // Es el owner?
-  if (this.owner.toString() === userIdStr) {
-    return { hasAccess: true, role: "owner" };
-  }
-
-  // Es colaborador?
-  const collaborator = this.collaborators.find(
-    (c) => c.user.toString() === userIdStr
-  );
-
-  if (collaborator) {
-    return { hasAccess: true, role: collaborator.role };
-  }
-
-  return { hasAccess: false, role: null };
-};
-*/
 ProjectSchema.methods.hasAccess = function (userId) {
   const userIdStr = userId.toString();
 
