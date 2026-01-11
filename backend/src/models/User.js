@@ -120,8 +120,8 @@ const UserSchema = new mongoose.Schema({
 });
 
 // Índices
-UserSchema.index({ email: 1 });
-UserSchema.index({ 'sharedProjects.projectId': 1 });
+//UserSchema.index({ email: 1 });
+//UserSchema.index({ 'sharedProjects.projectId': 1 });
 
 // Método para comparar contraseñas
 UserSchema.methods.comparePassword = async function(candidatePassword) {

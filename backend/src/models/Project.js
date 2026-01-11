@@ -65,9 +65,10 @@ const ProjectSchema = new mongoose.Schema(
 );
 
 // Índices
-ProjectSchema.index({ owner: 1 });
-ProjectSchema.index({ "collaborators.user": 1 });
-ProjectSchema.index({ status: 1 });
+//ProjectSchema.index({ owner: 1 });
+//ProjectSchema.index({ "collaborators.user": 1 });
+//ProjectSchema.index({ status: 1 });
+
 
 // 🛡️ Pre-save: Evitar que owner esté en collaborators
 ProjectSchema.pre("save", async function () {

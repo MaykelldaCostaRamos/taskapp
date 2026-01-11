@@ -6,6 +6,7 @@ import ErrorMessage from '../../components/ErrorMessage';
 import Loading from '../../components/Loading';
 import SearchUsers from '../../components/SearchUsers';
 import CollaboratorList from '../../components/CollaboratorList';
+import TaskList from '../../components/TaskList';
 
 export default function ProjectDetail() {
   const { id } = useParams();
@@ -73,10 +74,8 @@ export default function ProjectDetail() {
         role: selectedRole
       });
 
-      // Refrescar proyecto
       await fetchProject();
 
-      // Resetear formulario
       setSelectedUser(null);
       setSelectedRole('viewer');
       setShowAddCollaborator(false);
@@ -106,7 +105,6 @@ export default function ProjectDetail() {
   const isOwner = userRole === 'owner';
   const canEdit = userRole === 'owner' || userRole === 'editor';
 
-  // IDs a excluir en la búsqueda (owner + colaboradores actuales)
   const excludeUserIds = [
     project.owner._id,
     ...project.collaborators.map(c => c.user._id)
@@ -234,25 +232,19 @@ export default function ProjectDetail() {
 
       <div>
         <h2>Tareas ({tasks.length})</h2>
-        {tasks.length === 0 ? (
-          <p>No hay tareas en este proyecto.</p>
-        ) : (
-          <div>
-            {tasks.map(task => (
-              <div key={task._id}>
-                <h3>{task.title}</h3>
-                <p>Estado: {task.status}</p>
-                <p>Prioridad: {task.priority}</p>
-                {task.dueDate && (
-                  <p>Vence: {new Date(task.dueDate).toLocaleDateString()}</p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+        
+        <TaskList
+          tasks={tasks}
+          projectId={id}
+          canEdit={canEdit}
+          isOwner={isOwner}
+          onUpdate={fetchProject}
+        />
 
         {canEdit && (
-          <button>Crear Nueva Tarea</button>
+          <Link to={`/projects/${id}/tasks/create`}>
+            <button>Crear Nueva Tarea</button>
+          </Link>
         )}
       </div>
     </div>

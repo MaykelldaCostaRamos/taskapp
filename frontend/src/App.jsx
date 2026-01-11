@@ -8,6 +8,9 @@ import Projects from "./pages/projects/Project";
 import CreateProject from "./pages/projects/CreateProject";
 import ProjectDetail from "./pages/projects/ProjectDetail";
 import EditProject from "./pages/projects/EditProject";
+import CreateTask from "./pages/tasks/CreateTask";
+import TaskDetail from "./pages/tasks/TaskDetail";
+import EditTask from "./pages/tasks/EditTask";
 
 function App() {
   return (
@@ -58,6 +61,34 @@ function App() {
           element={
             <ProtectedRoute>
               <EditProject />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Rutas de Tareas */}
+        <Route
+          path="/projects/:projectId/tasks/create"
+          element={
+            <ProtectedRoute>
+              <CreateTask />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/projects/:projectId/tasks/:taskId"
+          element={
+            <ProtectedRoute>
+              <TaskDetail />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/projects/:projectId/tasks/:taskId/edit"
+          element={
+            <ProtectedRoute>
+              <EditTask />
             </ProtectedRoute>
           }
         />
